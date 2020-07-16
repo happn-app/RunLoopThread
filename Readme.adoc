@@ -1,0 +1,4 @@
+= RunLoopThread
+François Lamboley <fload@me.com>
+
+A thread that has a running `RunLoop`.
