@@ -2,6 +2,9 @@
 import PackageDescription
 
 
+#if !_runtime(_ObjC)
+	fatalError("Unsupported OS")
+#endif
 
 let package = Package(
 	name: "RunLoopThread",

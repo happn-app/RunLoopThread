@@ -21,15 +21,50 @@ import XCTest
 final class RunLoopThreadTests: XCTestCase {
 	
 	func testAsyncUsage() {
+		let t = RunLoopThread(name: "com.happn.runloop-thread.test-async-usage")
 		let witness = Witness()
-		let expectation = XCTKVOExpectation(keyPath: #keyPath(Witness.value), object: witness)
 		
-		let t = RunLoopThread(name: "com.happn.runloop-thread.test-basic-usage", startThread: false)
-		t.startThread()
+		let witnessExpectation = XCTKVOExpectation(keyPath: #keyPath(Witness.value), object: witness)
+		let exitExpectation = XCTNSNotificationExpectation(name: .NSThreadWillExit, object: t)
+		
+		t.start()
 		t.async{
 			witness.value = 1
+			t.cancel()
 		}
-		XCTWaiter().wait(for: [expectation], timeout: 1)
+		
+		let r = XCTWaiter().wait(for: [witnessExpectation, exitExpectation], timeout: 1)
+		XCTAssertEqual(r, .completed)
+		XCTAssertEqual(witness.value, 1)
+	}
+	
+	func testSyncUsage() {
+		let t = RunLoopThread(name: "com.happn.runloop-thread.test-sync-usage")
+		let witness = Witness()
+		
+		let exitExpectation = XCTNSNotificationExpectation(name: .NSThreadWillExit, object: t)
+		
+		t.start()
+		t.sync{ witness.value = 1 }
+		t.cancel()
+		
+		let r = XCTWaiter().wait(for: [exitExpectation], timeout: 1)
+		XCTAssertEqual(r, .completed)
+		XCTAssertEqual(witness.value, 1)
+	}
+	
+	func testNoExit() {
+		let t = RunLoopThread(name: "com.happn.runloop-thread.test-no-exit")
+		t.start()
+		
+		Thread.sleep(forTimeInterval: 0.5)
+		XCTAssertTrue(t.isExecuting)
+		XCTAssertFalse(t.isFinished)
+		
+		t.cancel()
+		let exitExpectation = XCTNSNotificationExpectation(name: .NSThreadWillExit, object: t)
+		let r = XCTWaiter().wait(for: [exitExpectation], timeout: 1)
+		XCTAssertEqual(r, .completed)
 	}
 	
 	@objc
