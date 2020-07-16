@@ -53,8 +53,69 @@ final class RunLoopThreadTests: XCTestCase {
 		XCTAssertEqual(witness.value, 1)
 	}
 	
-	func testNoExit() {
-		let t = RunLoopThread(name: "com.happn.runloop-thread.test-no-exit")
+	func testSyncUsage2() {
+		let t = RunLoopThread(name: "com.happn.runloop-thread.test-sync-usage-2")
+		let witness = Witness()
+		
+		let exitExpectation = XCTNSNotificationExpectation(name: .NSThreadWillExit, object: t)
+		
+		t.start()
+		t.sync{ witness.value = 1; t.cancel() }
+		
+		let r = XCTWaiter().wait(for: [exitExpectation], timeout: 1)
+		XCTAssertEqual(r, .completed)
+		XCTAssertEqual(witness.value, 1)
+	}
+	
+	func testStartAfterAsync() {
+		let t = RunLoopThread(name: "com.happn.runloop-thread.test-start-after-async")
+		let witness = Witness()
+		
+		let witnessExpectation = XCTKVOExpectation(keyPath: #keyPath(Witness.value), object: witness)
+		let witnessExpectation2 = XCTKVOExpectation(keyPath: #keyPath(Witness.value), object: witness)
+		let exitExpectation = XCTNSNotificationExpectation(name: .NSThreadWillExit, object: t)
+		
+		t.async{
+			witness.value = NSNumber(value: witness.value.intValue + 1)
+		}
+		t.async{
+			witness.value = NSNumber(value: witness.value.intValue + 1)
+			t.cancel()
+		}
+		t.start()
+		
+		let r = XCTWaiter().wait(for: [witnessExpectation, witnessExpectation2, exitExpectation], timeout: 1)
+		XCTAssertEqual(r, .completed)
+		XCTAssertEqual(witness.value, 2)
+	}
+	
+	func testStartAfterSync() {
+		let t = RunLoopThread(name: "com.happn.runloop-thread.thread-test-start-after-sync")
+		let witness = Witness()
+		
+		let witnessExpectation = XCTKVOExpectation(keyPath: #keyPath(Witness.value), object: witness)
+		let witnessExpectation2 = XCTKVOExpectation(keyPath: #keyPath(Witness.value), object: witness)
+		let exitExpectation = XCTNSNotificationExpectation(name: .NSThreadWillExit, object: t)
+		
+		DispatchQueue(label: "com.happn.runloop-thread.queue-test-start-after-sync").async{
+			t.sync{
+				witness.value = NSNumber(value: witness.value.intValue + 1)
+			}
+			t.sync{
+				witness.value = NSNumber(value: witness.value.intValue + 1)
+				t.cancel()
+			}
+		}
+		Thread.sleep(forTimeInterval: 0.5)
+		t.start()
+		
+		let r = XCTWaiter().wait(for: [witnessExpectation, witnessExpectation2, exitExpectation], timeout: 1)
+		XCTAssertEqual(r, .completed)
+		XCTAssertEqual(witness.value, 2)
+	}
+	
+	func testExit() {
+		let t = RunLoopThread(name: "com.happn.runloop-thread.test-exit")
 		t.start()
 		
 		Thread.sleep(forTimeInterval: 0.5)
