@@ -61,25 +61,33 @@ public final class RunLoopThread : Thread {
 		async{}
 	}
 	
-	public func sync(_ block: @escaping () -> Void) {
-		perform(#selector(RunLoopThread.internalRunBlock(_:)), on: self, with: BlockWrapper(block), waitUntilDone: true)
+	public func sync<T>(_ block: @escaping () -> T) -> T {
+		let wrapper = BlockWrapper(block)
+		perform(#selector(RunLoopThread.internalRunBlock(_:)), on: self, with: wrapper, waitUntilDone: true)
+		return wrapper.res! as! T
 	}
 	
 	public func async(_ block: @escaping () -> Void) {
 		perform(#selector(RunLoopThread.internalRunBlock(_:)), on: self, with: BlockWrapper(block), waitUntilDone: false)
 	}
 	
-	@objc private func internalRunBlock(_ blockWrapper: BlockWrapper) {
-		blockWrapper.block()
+	/** Do not make assumptions on the context on which the handler will be called. */
+	public func async<T>(_ block: @escaping () -> T, handler: @escaping (_ res: T) -> Void) {
+		perform(#selector(RunLoopThread.internalRunBlock(_:)), on: self, with: BlockWrapper({ handler(block()) }), waitUntilDone: false)
 	}
 	
-	@objc
+	@objc private func internalRunBlock(_ blockWrapper: BlockWrapper) {
+		blockWrapper.res = blockWrapper.block()
+	}
+	
 	private class BlockWrapper : NSObject {
 		
-		let block: () -> Void
-		init(_ b: @escaping () -> Void) {
+		let block: () -> Any
+		init(_ b: @escaping () -> Any) {
 			block = b
 		}
+		
+		var res: Any?
 		
 	}
 	
