@@ -38,6 +38,26 @@ final class RunLoopThreadTests: XCTestCase {
 		XCTAssertEqual(witness.value, 1)
 	}
 	
+	func testAsyncUsageWithResult() {
+		let t = RunLoopThread(name: "com.happn.runloop-thread.test-async-usage")
+		let witness = Witness()
+		
+		let witnessExpectation = XCTKVOExpectation(keyPath: #keyPath(Witness.value), object: witness)
+		let exitExpectation = XCTNSNotificationExpectation(name: .NSThreadWillExit, object: t)
+		
+		t.start()
+		t.async{
+			t.cancel()
+			return 1
+		} handler: { val in
+			witness.value = val
+		}
+		
+		let r = XCTWaiter().wait(for: [witnessExpectation, exitExpectation], timeout: 1)
+		XCTAssertEqual(r, .completed)
+		XCTAssertEqual(witness.value, 1)
+	}
+	
 	func testSyncUsage() {
 		let t = RunLoopThread(name: "com.happn.runloop-thread.test-sync-usage")
 		let witness = Witness()
@@ -65,6 +85,20 @@ final class RunLoopThreadTests: XCTestCase {
 		let r = XCTWaiter().wait(for: [exitExpectation], timeout: 1)
 		XCTAssertEqual(r, .completed)
 		XCTAssertEqual(witness.value, 1)
+	}
+	
+	func testSyncUsageWithResult() {
+		let t = RunLoopThread(name: "com.happn.runloop-thread.test-sync-usage")
+		
+		let exitExpectation = XCTNSNotificationExpectation(name: .NSThreadWillExit, object: t)
+		
+		t.start()
+		let val = t.sync{ return 1 }
+		t.cancel()
+		
+		let r = XCTWaiter().wait(for: [exitExpectation], timeout: 1)
+		XCTAssertEqual(r, .completed)
+		XCTAssertEqual(val, 1)
 	}
 	
 	func testStartAfterAsync() {
