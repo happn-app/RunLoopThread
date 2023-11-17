@@ -1,6 +1,13 @@
 = RunLoopThread
 François Lamboley <fload@me.com>
 
+---
+
+NOTE: This repo is no longer maintained by happn. +
+A maintained version is available from its creator at https://github.com/Frizlab/RunLoopThread[Frizlab/RunLoopThread].
+
+---
+
 A thread that has a running `RunLoop`.
 
 == Usage
